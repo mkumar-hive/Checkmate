@@ -128,13 +128,26 @@ class StatusService {
 				monitor.statusWindow.shift();
 			}
 
+			// Check if this is the first time we have enough data points for a down monitor
+			// Must check BEFORE setting initial status
+			const isInitialStatus = (monitor.status === undefined || monitor.status === null);
+			const isInitialDown = monitor.statusWindow.length === monitor.statusWindowSize && 
+								  isInitialStatus && 
+								  monitor.statusWindow.every(s => s === false);
+			
+			// Debug logging
+			this.logger.info({
+				service: this.SERVICE_NAME,
+				message: `Status check for ${monitor.name}: initialStatus=${isInitialStatus}, initialDown=${isInitialDown}, window=${monitor.statusWindow.length}/${monitor.statusWindowSize}, status=${monitor.status}`,
+			});
+
 			if (monitor.status === undefined || monitor.status === null) {
 				monitor.status = status;
 			}
 
 			let newStatus = monitor.status;
 			let statusChanged = false;
-			const prevStatus = monitor.status;
+			const prevStatus = isInitialStatus ? undefined : monitor.status;
 
 			// Return early if not enough data points
 			if (monitor.statusWindow.length < monitor.statusWindowSize) {
@@ -152,8 +165,21 @@ class StatusService {
 			const failures = monitor.statusWindow.filter((s) => s === false).length;
 			const failureRate = (failures / monitor.statusWindow.length) * 100;
 
+			// Special case: If this is the initial status determination and it's down, trigger notification
+			// This happens when we first have enough data points to make a determination
+			const isFirstDetermination = monitor.statusWindow.length === monitor.statusWindowSize && 
+										 !monitor.hasInitialStatusDetermination;
+			
+			if (isFirstDetermination && failureRate >= monitor.statusWindowThreshold) {
+				newStatus = false;
+				statusChanged = true;
+				this.logger.info({
+					service: this.SERVICE_NAME,
+					message: `${monitor.name} initial status is DOWN - triggering notification`,
+				});
+			}
 			// If threshold has been met and the monitor is not already down, mark down:
-			if (failureRate >= monitor.statusWindowThreshold && monitor.status !== false) {
+			else if (failureRate >= monitor.statusWindowThreshold && monitor.status !== false) {
 				newStatus = false;
 				statusChanged = true;
 			}
@@ -173,6 +199,12 @@ class StatusService {
 			}
 
 			monitor.status = newStatus;
+			
+			// Mark that we've made an initial status determination
+			if (isFirstDetermination) {
+				monitor.hasInitialStatusDetermination = true;
+			}
+			
 			await monitor.save();
 
 			return {

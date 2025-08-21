@@ -32,7 +32,16 @@ class NotificationService {
 		}
 
 		if (type === "slack" || type === "discord" || type === "webhook") {
+			this.logger.info({
+				service: this.SERVICE_NAME,
+				message: `Sending ${type} notification to ${address}`,
+				body
+			});
 			const response = await this.networkService.requestWebhook(type, address, body);
+			this.logger.info({
+				service: this.SERVICE_NAME,
+				message: `${type} notification response: ${response.status}`,
+			});
 			return response.status;
 		}
 		if (type === "pager_duty") {
@@ -49,9 +58,16 @@ class NotificationService {
 	async handleNotifications(networkResponse) {
 		const { monitor, statusChanged, prevStatus } = networkResponse;
 		const { type } = monitor;
+		
+		this.logger.info({
+			service: this.SERVICE_NAME,
+			message: `Notification check for ${monitor.name}: statusChanged=${statusChanged}, prevStatus=${prevStatus}, currentStatus=${monitor.status}`,
+		});
+		
 		if (type !== "hardware" && statusChanged === false) return false;
-		// if prevStatus is undefined, monitor is resuming, we're done
-		if (type !== "hardware" && prevStatus === undefined) return false;
+		// Allow notifications for initial DOWN state (prevStatus undefined and current status is false)
+		// Skip only if prevStatus is undefined and monitor is UP (resuming scenario)
+		if (type !== "hardware" && prevStatus === undefined && monitor.status !== false) return false;
 
 		const notificationIDs = networkResponse.monitor?.notifications ?? [];
 		if (notificationIDs.length === 0) return false;
