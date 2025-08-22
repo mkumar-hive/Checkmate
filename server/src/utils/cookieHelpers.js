@@ -8,7 +8,7 @@ export const getAuthCookieOptions = (options = {}) => {
 		httpOnly: true,
 		secure: process.env.NODE_ENV === "production",
 		sameSite: "strict",
-		maxAge: 2 * 60 * 60 * 1000, // 2 hours (matches JWT TTL)
+		maxAge: 24 * 60 * 60 * 1000, // 24 hours (matches JWT TTL)
 		...options,
 	};
 };
