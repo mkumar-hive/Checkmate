@@ -158,8 +158,8 @@
 	"webhookUrlRequired": "Webhook URL is required",
 	"platformRequired": "Platform is required",
 	"testNotificationFailed": "Failed to send test notification",
-	"monitorUpAlert": "Uptime Alert: One of your monitors is back online.\n📌 Monitor: {monitorName}\n📅 Time: {time}\n⚠️ Status: UP\n📟 Status Code: {code}\n\u200B\n",
-	"monitorDownAlert": "Downtime Alert: One of your monitors went offline.\n📌 Monitor: {monitorName}\n📅 Time: {time}\n⚠️ Status: DOWN\n📟 Status Code: {code}\n\u200B\n",
+	"monitorUpAlert": "✅ Uptime Alert: Monitor is back online\n\n📌 Monitor: {monitorName}\n🔗 {urlLabel}: {url}\n📊 Type: {monitorType}\n📅 Time: {time}\n⚠️ Status: UP\n📟 Status Code: {code}\n⏱️ Response Time: {responseTime}ms\n📝 Message: {message}\n\u200B\n",
+	"monitorDownAlert": "🚨 Downtime Alert: Monitor went offline\n\n📌 Monitor: {monitorName}\n🔗 {urlLabel}: {url}\n📊 Type: {monitorType}\n📅 Time: {time}\n⚠️ Status: DOWN\n📟 Status Code: {code}\n⏱️ Response Time: {responseTime}ms\n📝 Error: {message}\n\u200B\n",
 	"sendTestEmail": "Test email sent successfully",
 	"errorForValidEmailAddress": "A valid recipient email address is required.",
 	"testEmailSubject": "Test E-mail from Checkmate"

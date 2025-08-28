@@ -1,5 +1,11 @@
 const SERVICE_NAME = "NotificationUtils";
 
+// Load message templates directly
+const messageTemplates = {
+	monitorUpAlert: "✅ Uptime Alert: Monitor is back online\n\n📌 Monitor: {monitorName}\n🔗 {urlLabel}: {url}\n📊 Type: {monitorType}\n📅 Time: {time}\n⚠️ Status: UP\n📟 Status Code: {code}\n⏱️ Response Time: {responseTime}ms\n📝 Message: {message}\n\u200B\n",
+	monitorDownAlert: "🚨 Downtime Alert: Monitor went offline\n\n📌 Monitor: {monitorName}\n🔗 {urlLabel}: {url}\n📊 Type: {monitorType}\n📅 Time: {time}\n⚠️ Status: DOWN\n📟 Status Code: {code}\n⏱️ Response Time: {responseTime}ms\n📝 Error: {message}\n\u200B\n"
+};
+
 class NotificationUtils {
 	static SERVICE_NAME = SERVICE_NAME;
 
@@ -28,7 +34,18 @@ class NotificationUtils {
 	};
 
 	buildWebhookMessage = (networkResponse) => {
-		const { monitor, status, code, timestamp } = networkResponse;
+		const { monitor, status, code, timestamp, responseTime, message } = networkResponse;
+		
+		// Log the monitor data for debugging
+		console.log("Building webhook message for monitor:", {
+			name: monitor?.name,
+			url: monitor?.url,
+			type: monitor?.type,
+			status,
+			code,
+			responseTime,
+			message
+		});
 		// Format timestamp using the local system timezone
 		const formatTime = (timestamp) => {
 			const date = new Date(timestamp);
@@ -57,19 +74,60 @@ class NotificationUtils {
 		// Get formatted time
 		const formattedTime = timestamp ? formatTime(timestamp) : formatTime(new Date().getTime());
 
+		// Determine the URL/Host label based on monitor type
+		let urlLabel = "URL";
+		let urlValue = monitor.url || "N/A";
+		
+		if (monitor.type === "ping") {
+			urlLabel = "Host/IP";
+		} else if (monitor.type === "port") {
+			urlLabel = "Host:Port";
+			if (monitor.port) {
+				urlValue = `${monitor.url}:${monitor.port}`;
+			}
+		} else if (monitor.type === "docker") {
+			urlLabel = "Container";
+		}
+
+		// Determine appropriate error message
+		let errorMessage = message;
+		if (!errorMessage) {
+			if (monitor.type === "ping") {
+				errorMessage = status ? "Host is reachable" : "Host is unreachable";
+			} else if (monitor.type === "port") {
+				errorMessage = status ? "Port is open" : "Port is closed or unreachable";
+			} else if (monitor.type === "http") {
+				errorMessage = status ? "HTTP service is responding" : (code ? `HTTP ${code} error` : "HTTP service is not responding");
+			} else {
+				errorMessage = status ? "Monitor is responding normally" : "Monitor is not responding";
+			}
+		}
+
 		// Create different messages based on status with extra spacing
 		let messageText;
 		if (status === true) {
-			messageText = this.stringService.monitorUpAlert
-				.replace("{monitorName}", monitor.name)
-				.replace("{time}", formattedTime)
-				.replace("{code}", code || "Unknown");
+			messageText = messageTemplates.monitorUpAlert
+				.replace(/{monitorName}/g, monitor?.name || "Unknown")
+				.replace(/{url}/g, urlValue)
+				.replace(/{urlLabel}/g, urlLabel)
+				.replace(/{monitorType}/g, monitor?.type || "Unknown")
+				.replace(/{time}/g, formattedTime)
+				.replace(/{code}/g, code || "N/A")
+				.replace(/{responseTime}/g, responseTime || "N/A")
+				.replace(/{message}/g, errorMessage);
 		} else {
-			messageText = this.stringService.monitorDownAlert
-				.replace("{monitorName}", monitor.name)
-				.replace("{time}", formattedTime)
-				.replace("{code}", code || "Unknown");
+			messageText = messageTemplates.monitorDownAlert
+				.replace(/{monitorName}/g, monitor?.name || "Unknown")
+				.replace(/{url}/g, urlValue)
+				.replace(/{urlLabel}/g, urlLabel)
+				.replace(/{monitorType}/g, monitor?.type || "Unknown")
+				.replace(/{time}/g, formattedTime)
+				.replace(/{code}/g, code || "N/A")
+				.replace(/{responseTime}/g, responseTime || "N/A")
+				.replace(/{message}/g, errorMessage);
 		}
+		
+		console.log("Final message text (first 200 chars):", messageText.substring(0, 200));
 		return messageText;
 	};
 
